@@ -1,17 +1,38 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { maintenanceApi } from '../services/api';
-import { Plus, Search, Wrench } from 'lucide-react';
+import { Plus, Search, Wrench, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
+import toast from 'react-hot-toast';
+import MaintenanceForm from '../components/MaintenanceForm';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useAuth } from '../context/AuthContext';
 
 export default function Maintenance() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingMaintenance, setEditingMaintenance] = useState<any>(null);
+  const [deletingMaintenance, setDeletingMaintenance] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { isManager } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['maintenance', search, statusFilter],
     queryFn: () => maintenanceApi.getAll({ status: statusFilter || undefined }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => maintenanceApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['maintenance'] });
+      toast.success('Maintenance record deleted successfully');
+      setDeletingMaintenance(null);
+    },
+    onError: () => {
+      toast.error('Failed to delete maintenance record');
+    },
   });
 
   const logs = data?.data?.data || [];
@@ -23,11 +44,21 @@ export default function Maintenance() {
     cancelled: 'badge-gray',
   };
 
+  const handleEdit = (log: any) => {
+    setEditingMaintenance(log);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingMaintenance(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Maintenance</h1>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus className="w-5 h-5 mr-2" />
           Log Maintenance
         </button>
@@ -67,12 +98,13 @@ export default function Maintenance() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <div className="flex justify-center">
                       <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
                     </div>
@@ -80,12 +112,12 @@ export default function Maintenance() {
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    No maintenance records found
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    No maintenance records found. Click "Log Maintenance" to create one.
                   </td>
                 </tr>
               ) : (
-                logs.map((log: { id: number; vehicle?: { bus_number: string; plate_number: string }; type: string; service_date: string; total_cost: number; status: string }) => (
+                logs.map((log: any) => (
                   <tr key={log.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -102,6 +134,24 @@ export default function Maintenance() {
                     <td className="px-6 py-4">
                       <span className={clsx('badge', statusColors[log.status])}>{log.status}</span>
                     </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => handleEdit(log)}
+                          className="p-1 text-gray-400 hover:text-blue-600"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        {isManager && (
+                          <button
+                            onClick={() => setDeletingMaintenance(log)}
+                            className="p-1 text-gray-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -109,6 +159,22 @@ export default function Maintenance() {
           </table>
         </div>
       </div>
+
+      <MaintenanceForm
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        maintenance={editingMaintenance}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deletingMaintenance}
+        onClose={() => setDeletingMaintenance(null)}
+        onConfirm={() => deletingMaintenance && deleteMutation.mutate(deletingMaintenance.id)}
+        title="Delete Maintenance Record"
+        message={`Are you sure you want to delete this maintenance record? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

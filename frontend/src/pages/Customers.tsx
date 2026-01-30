@@ -1,16 +1,37 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customersApi } from '../services/api';
-import { Plus, Search, Building2, Phone, Mail } from 'lucide-react';
+import { Plus, Search, Building2, Phone, Mail, Edit, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
+import CustomerForm from '../components/CustomerForm';
+import ConfirmDialog from '../components/ConfirmDialog';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 export default function Customers() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { isManager } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['customers', search, typeFilter],
     queryFn: () => customersApi.getAll({ search, type: typeFilter || undefined }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => customersApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast.success('Customer deleted successfully');
+      setDeletingCustomer(null);
+    },
+    onError: () => {
+      toast.error('Failed to delete customer');
+    },
   });
 
   const customers = data?.data?.data || [];
@@ -23,11 +44,21 @@ export default function Customers() {
     other: 'badge-gray',
   };
 
+  const handleEdit = (customer: any) => {
+    setEditingCustomer(customer);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingCustomer(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus className="w-5 h-5 mr-2" />
           Add Customer
         </button>
@@ -65,11 +96,11 @@ export default function Customers() {
           </div>
         ) : customers.length === 0 ? (
           <div className="col-span-full text-center text-gray-500 py-12">
-            No customers found
+            No customers found. Click "Add Customer" to create one.
           </div>
         ) : (
-          customers.map((customer: { id: number; name: string; company_name?: string; contact_person?: string; phone?: string; email?: string; type: string; is_active: boolean }) => (
-            <div key={customer.id} className="card p-4 hover:shadow-md transition-shadow cursor-pointer">
+          customers.map((customer: any) => (
+            <div key={customer.id} className="card p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary-50 rounded-lg">
@@ -82,9 +113,25 @@ export default function Customers() {
                     )}
                   </div>
                 </div>
-                <span className={clsx('badge', typeColors[customer.type])}>
-                  {customer.type.replace('_', ' ')}
-                </span>
+                <div className="flex items-center gap-1">
+                  <span className={clsx('badge', typeColors[customer.type])}>
+                    {customer.type.replace('_', ' ')}
+                  </span>
+                  <button
+                    onClick={() => handleEdit(customer)}
+                    className="p-1 text-gray-400 hover:text-blue-600"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  {isManager && (
+                    <button
+                      onClick={() => setDeletingCustomer(customer)}
+                      className="p-1 text-gray-400 hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="mt-4 space-y-2">
@@ -114,6 +161,22 @@ export default function Customers() {
           ))
         )}
       </div>
+
+      <CustomerForm
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        customer={editingCustomer}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deletingCustomer}
+        onClose={() => setDeletingCustomer(null)}
+        onConfirm={() => deletingCustomer && deleteMutation.mutate(deletingCustomer.id)}
+        title="Delete Customer"
+        message={`Are you sure you want to delete "${deletingCustomer?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

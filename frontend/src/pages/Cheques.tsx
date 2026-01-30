@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { chequesApi } from '../services/api';
-import { Plus, CreditCard, Check, X } from 'lucide-react';
+import { Plus, CreditCard, Check, X, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import ChequeForm from '../components/ChequeForm';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useAuth } from '../context/AuthContext';
 
 export default function Cheques() {
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingCheque, setEditingCheque] = useState<any>(null);
+  const [deletingCheque, setDeletingCheque] = useState<any>(null);
   const queryClient = useQueryClient();
+  const { isManager } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['cheques', typeFilter, statusFilter],
@@ -32,6 +39,18 @@ export default function Cheques() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => chequesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cheques'] });
+      toast.success('Cheque deleted successfully');
+      setDeletingCheque(null);
+    },
+    onError: () => {
+      toast.error('Failed to delete cheque');
+    },
+  });
+
   const cheques = data?.data?.data || [];
 
   const statusColors: Record<string, string> = {
@@ -42,11 +61,21 @@ export default function Cheques() {
     replaced: 'badge-info',
   };
 
+  const handleEdit = (cheque: any) => {
+    setEditingCheque(cheque);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingCheque(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Cheques</h1>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus className="w-5 h-5 mr-2" />
           Add Cheque
         </button>
@@ -81,8 +110,8 @@ export default function Cheques() {
           <p className="text-sm text-gray-500">Pending Received</p>
           <p className="text-2xl font-bold text-green-600">
             AED {cheques
-              .filter((c: { type: string; status: string }) => c.type === 'received' && c.status === 'pending')
-              .reduce((sum: number, c: { amount: number }) => sum + c.amount, 0)
+              .filter((c: any) => c.type === 'received' && c.status === 'pending')
+              .reduce((sum: number, c: any) => sum + (parseFloat(c.amount) || 0), 0)
               .toLocaleString()}
           </p>
         </div>
@@ -90,15 +119,15 @@ export default function Cheques() {
           <p className="text-sm text-gray-500">Pending Issued</p>
           <p className="text-2xl font-bold text-red-600">
             AED {cheques
-              .filter((c: { type: string; status: string }) => c.type === 'issued' && c.status === 'pending')
-              .reduce((sum: number, c: { amount: number }) => sum + c.amount, 0)
+              .filter((c: any) => c.type === 'issued' && c.status === 'pending')
+              .reduce((sum: number, c: any) => sum + (parseFloat(c.amount) || 0), 0)
               .toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
           <p className="text-sm text-gray-500">Bounced</p>
           <p className="text-2xl font-bold text-yellow-600">
-            {cheques.filter((c: { status: string }) => c.status === 'bounced').length}
+            {cheques.filter((c: any) => c.status === 'bounced').length}
           </p>
         </div>
       </div>
@@ -114,7 +143,7 @@ export default function Cheques() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -129,11 +158,11 @@ export default function Cheques() {
               ) : cheques.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    No cheques found
+                    No cheques found. Click "Add Cheque" to create one.
                   </td>
                 </tr>
               ) : (
-                cheques.map((cheque: { id: number; cheque_date: string; cheque_number: string; bank_name: string; type: string; amount: number; status: string }) => (
+                cheques.map((cheque: any) => (
                   <tr key={cheque.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">{format(new Date(cheque.cheque_date), 'MMM d, yyyy')}</td>
                     <td className="px-6 py-4">
@@ -156,24 +185,40 @@ export default function Cheques() {
                       <span className={clsx('badge', statusColors[cheque.status])}>{cheque.status}</span>
                     </td>
                     <td className="px-6 py-4">
-                      {cheque.status === 'pending' && (
-                        <div className="flex items-center gap-1">
+                      <div className="flex justify-center gap-1">
+                        {cheque.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => clearMutation.mutate(cheque.id)}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded-lg"
+                              title="Mark as Cleared"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => bounceMutation.mutate(cheque.id)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded-lg"
+                              title="Mark as Bounced"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => handleEdit(cheque)}
+                          className="p-1 text-gray-400 hover:text-blue-600"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        {isManager && (
                           <button
-                            onClick={() => clearMutation.mutate(cheque.id)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                            title="Mark as Cleared"
+                            onClick={() => setDeletingCheque(cheque)}
+                            className="p-1 text-gray-400 hover:text-red-600"
                           >
-                            <Check className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => bounceMutation.mutate(cheque.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                            title="Mark as Bounced"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -182,6 +227,22 @@ export default function Cheques() {
           </table>
         </div>
       </div>
+
+      <ChequeForm
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        cheque={editingCheque}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deletingCheque}
+        onClose={() => setDeletingCheque(null)}
+        onConfirm={() => deletingCheque && deleteMutation.mutate(deletingCheque.id)}
+        title="Delete Cheque"
+        message={`Are you sure you want to delete cheque #${deletingCheque?.cheque_number}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

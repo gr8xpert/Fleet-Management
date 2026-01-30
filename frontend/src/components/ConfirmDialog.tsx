@@ -1,4 +1,6 @@
-import { AlertTriangle } from 'lucide-react';
+import { useEffect } from 'react';
+import { AlertTriangle, AlertCircle, Loader2 } from 'lucide-react';
+import clsx from 'clsx';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -23,45 +25,71 @@ export default function ConfirmDialog({
   isLoading = false,
   variant = 'danger',
 }: ConfirmDialogProps) {
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isLoading) onClose();
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, isLoading, onClose]);
+
   if (!isOpen) return null;
 
+  const Icon = variant === 'danger' ? AlertTriangle : AlertCircle;
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-gray-900/50 transition-opacity"
-          onClick={onClose}
-        />
-
-        {/* Dialog */}
-        <div className="relative w-full max-w-md bg-white rounded-xl shadow-xl p-6">
+    <div className="modal-backdrop animate-fade-in">
+      {/* Dialog */}
+      <div className="modal max-w-md animate-scale-in relative z-10">
+        <div className="p-6">
           <div className="flex items-start gap-4">
-            <div className={`p-3 rounded-full ${variant === 'danger' ? 'bg-red-100' : 'bg-yellow-100'}`}>
-              <AlertTriangle className={`w-6 h-6 ${variant === 'danger' ? 'text-red-600' : 'text-yellow-600'}`} />
+            <div className={clsx(
+              'p-3',
+              variant === 'danger' ? 'bg-danger-100' : 'bg-warning-100'
+            )}>
+              <Icon className={clsx(
+                'w-6 h-6',
+                variant === 'danger' ? 'text-danger-600' : 'text-warning-600'
+              )} />
             </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-              <p className="mt-2 text-sm text-gray-600">{message}</p>
+            <div className="flex-1 pt-1">
+              <h3 className="text-lg font-display font-semibold text-primary-900">{title}</h3>
+              <p className="mt-2 text-sm text-primary-600 leading-relaxed">{message}</p>
             </div>
           </div>
+        </div>
 
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              onClick={onClose}
-              disabled={isLoading}
-              className="btn-secondary"
-            >
-              {cancelText}
-            </button>
-            <button
-              onClick={onConfirm}
-              disabled={isLoading}
-              className={variant === 'danger' ? 'btn-danger' : 'btn-primary'}
-            >
-              {isLoading ? 'Please wait...' : confirmText}
-            </button>
-          </div>
+        <div className="modal-footer">
+          <button
+            onClick={onClose}
+            disabled={isLoading}
+            className="btn-secondary"
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isLoading}
+            className={clsx(
+              variant === 'danger' ? 'btn-danger' : 'btn-primary',
+              'min-w-[100px]'
+            )}
+          >
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              confirmText
+            )}
+          </button>
         </div>
       </div>
     </div>

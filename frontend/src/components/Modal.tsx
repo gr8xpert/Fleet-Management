@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { X } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -11,6 +11,23 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const sizes = {
@@ -21,34 +38,28 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-gray-900/50 transition-opacity"
-          onClick={onClose}
-        />
-
-        {/* Modal */}
-        <div className={clsx(
-          'relative w-full bg-white rounded-xl shadow-xl',
+    <div className="modal-backdrop animate-fade-in">
+      {/* Modal */}
+      <div
+        className={clsx(
+          'modal relative z-10',
           sizes[size]
-        )}>
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+        )}
+      >
+        {/* Header */}
+        <div className="modal-header">
+          <h2 className="modal-title">{title}</h2>
+          <button
+            onClick={onClose}
+            className="btn-icon -mr-2"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-          {/* Body */}
-          <div className="p-6">
-            {children}
-          </div>
+        {/* Body */}
+        <div className="modal-body max-h-[calc(90vh-8rem)]">
+          {children}
         </div>
       </div>
     </div>

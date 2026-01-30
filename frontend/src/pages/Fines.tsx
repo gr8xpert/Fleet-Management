@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { finesApi } from '../services/api';
-import { Plus, Search, FileWarning, Check } from 'lucide-react';
+import { Plus, Search, FileWarning, Check, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import FineForm from '../components/FineForm';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useAuth } from '../context/AuthContext';
 
 export default function Fines() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingFine, setEditingFine] = useState<any>(null);
+  const [deletingFine, setDeletingFine] = useState<any>(null);
   const queryClient = useQueryClient();
+  const { isManager } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['fines', search, statusFilter],
@@ -21,6 +28,18 @@ export default function Fines() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fines'] });
       toast.success('Fine marked as paid');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => finesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fines'] });
+      toast.success('Fine deleted successfully');
+      setDeletingFine(null);
+    },
+    onError: () => {
+      toast.error('Failed to delete fine');
     },
   });
 
@@ -40,11 +59,21 @@ export default function Fines() {
     salik: 'text-blue-600',
   };
 
+  const handleEdit = (fine: any) => {
+    setEditingFine(fine);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingFine(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Fines & Penalties</h1>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus className="w-5 h-5 mr-2" />
           Add Fine
         </button>
@@ -79,19 +108,19 @@ export default function Fines() {
         <div className="card p-4">
           <p className="text-sm text-gray-500">Total Pending</p>
           <p className="text-2xl font-bold text-yellow-600">
-            AED {fines.filter((f: { status: string }) => f.status === 'pending').reduce((sum: number, f: { amount: number }) => sum + f.amount, 0).toLocaleString()}
+            AED {fines.filter((f: any) => f.status === 'pending').reduce((sum: number, f: any) => sum + (parseFloat(f.amount) || 0), 0).toLocaleString()}
           </p>
         </div>
         <div className="card p-4">
           <p className="text-sm text-gray-500">Pending Count</p>
           <p className="text-2xl font-bold text-gray-900">
-            {fines.filter((f: { status: string }) => f.status === 'pending').length}
+            {fines.filter((f: any) => f.status === 'pending').length}
           </p>
         </div>
         <div className="card p-4">
           <p className="text-sm text-gray-500">Total This Month</p>
           <p className="text-2xl font-bold text-gray-900">
-            AED {fines.reduce((sum: number, f: { amount: number }) => sum + f.amount, 0).toLocaleString()}
+            AED {fines.reduce((sum: number, f: any) => sum + (parseFloat(f.amount) || 0), 0).toLocaleString()}
           </p>
         </div>
       </div>
@@ -107,7 +136,7 @@ export default function Fines() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -122,11 +151,11 @@ export default function Fines() {
               ) : fines.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    No fines found
+                    No fines found. Click "Add Fine" to create one.
                   </td>
                 </tr>
               ) : (
-                fines.map((fine: { id: number; fine_date: string; vehicle?: { bus_number: string }; driver?: { name: string }; type: string; amount: number; black_points: number; status: string }) => (
+                fines.map((fine: any) => (
                   <tr key={fine.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">{format(new Date(fine.fine_date), 'MMM d, yyyy')}</td>
                     <td className="px-6 py-4">
@@ -151,16 +180,32 @@ export default function Fines() {
                       <span className={clsx('badge', statusColors[fine.status])}>{fine.status}</span>
                     </td>
                     <td className="px-6 py-4">
-                      {fine.status === 'pending' && (
+                      <div className="flex justify-center gap-2">
+                        {fine.status === 'pending' && (
+                          <button
+                            onClick={() => markPaidMutation.mutate(fine.id)}
+                            disabled={markPaidMutation.isPending}
+                            className="p-1 text-green-600 hover:bg-green-50 rounded-lg"
+                            title="Mark as Paid"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
-                          onClick={() => markPaidMutation.mutate(fine.id)}
-                          disabled={markPaidMutation.isPending}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                          title="Mark as Paid"
+                          onClick={() => handleEdit(fine)}
+                          className="p-1 text-gray-400 hover:text-blue-600"
                         >
-                          <Check className="w-4 h-4" />
+                          <Edit className="w-4 h-4" />
                         </button>
-                      )}
+                        {isManager && (
+                          <button
+                            onClick={() => setDeletingFine(fine)}
+                            className="p-1 text-gray-400 hover:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -169,6 +214,22 @@ export default function Fines() {
           </table>
         </div>
       </div>
+
+      <FineForm
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        fine={editingFine}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deletingFine}
+        onClose={() => setDeletingFine(null)}
+        onConfirm={() => deletingFine && deleteMutation.mutate(deletingFine.id)}
+        title="Delete Fine"
+        message={`Are you sure you want to delete this fine of AED ${deletingFine?.amount}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

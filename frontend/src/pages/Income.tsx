@@ -1,13 +1,21 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { incomeApi } from '../services/api';
-import { Plus, Search, DollarSign, TrendingUp } from 'lucide-react';
+import { Plus, Search, DollarSign, TrendingUp, Edit, Trash2, Filter, Calendar, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-import clsx from 'clsx';
+import IncomeForm from '../components/IncomeForm';
+import ConfirmDialog from '../components/ConfirmDialog';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 export default function Income() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingIncome, setEditingIncome] = useState<any>(null);
+  const [deletingIncome, setDeletingIncome] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { isManager } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ['income', search, categoryFilter],
@@ -19,135 +27,246 @@ export default function Income() {
     queryFn: () => incomeApi.getCategories(),
   });
 
-  // Handle paginated response format
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => incomeApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['income'] });
+      toast.success('Income deleted successfully');
+      setDeletingIncome(null);
+    },
+    onError: () => {
+      toast.error('Failed to delete income');
+    },
+  });
+
   const incomeRecords = data?.data?.data || [];
   const categories = categoriesData?.data || [];
 
-  const totalAmount = incomeRecords.reduce((sum: number, inc: { amount: number }) => sum + inc.amount, 0);
+  const totalAmount = incomeRecords.reduce((sum: number, inc: any) => sum + (parseFloat(inc.amount) || 0), 0);
   const pendingAmount = incomeRecords
-    .filter((inc: { status: string }) => inc.status !== 'received')
-    .reduce((sum: number, inc: { amount: number }) => sum + inc.amount, 0);
+    .filter((inc: any) => inc.status !== 'received')
+    .reduce((sum: number, inc: any) => sum + (parseFloat(inc.amount) || 0), 0);
 
-  const statusColors: Record<string, string> = {
-    received: 'badge-success',
-    pending: 'badge-warning',
-    partial: 'badge-info',
+  const statusConfig: Record<string, { badge: string; label: string }> = {
+    received: { badge: 'badge-success', label: 'Received' },
+    pending: { badge: 'badge-warning', label: 'Pending' },
+    partial: { badge: 'badge-info', label: 'Partial' },
+  };
+
+  const handleEdit = (income: any) => {
+    setEditingIncome(income);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingIncome(null);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Income</h1>
-        <button className="btn-primary">
-          <Plus className="w-5 h-5 mr-2" />
+      {/* Page Header */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Income</h1>
+          <p className="page-subtitle">{incomeRecords.length} income records</p>
+        </div>
+        <button className="btn-primary" onClick={() => setShowForm(true)}>
+          <Plus className="w-4 h-4" />
           Add Income
         </button>
       </div>
 
+      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <div className="input-group flex-1">
+          <Search className="input-group-icon" />
           <input
             type="text"
             placeholder="Search income..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input pl-10"
+            className="input"
           />
         </div>
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="input w-full sm:w-48"
-        >
-          <option value="">All Categories</option>
-          {categories.map((cat: { id: number; name: string }) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
-        </select>
+        <div className="input-group sm:w-56">
+          <Filter className="input-group-icon" />
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="input appearance-none cursor-pointer"
+          >
+            <option value="">All Categories</option>
+            {categories.map((cat: { id: number; name: string }) => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Summary */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-green-600" />
+        <div className="stat-card animate-fade-in-up">
+          <div className="flex items-center gap-4">
+            <div className="stat-icon-green">
+              <TrendingUp className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Income</p>
-              <p className="text-2xl font-bold text-green-600">AED {totalAmount.toLocaleString()}</p>
+              <p className="text-sm font-medium text-primary-500">Total Income</p>
+              <p className="text-2xl font-display font-bold text-success-600 tabular-nums">
+                AED {totalAmount.toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-yellow-100 rounded-lg">
-              <DollarSign className="w-6 h-6 text-yellow-600" />
+        <div className="stat-card animate-fade-in-up delay-100">
+          <div className="flex items-center gap-4">
+            <div className="stat-icon-amber">
+              <Clock className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Pending Collection</p>
-              <p className="text-2xl font-bold text-yellow-600">AED {pendingAmount.toLocaleString()}</p>
+              <p className="text-sm font-medium text-primary-500">Pending Collection</p>
+              <p className="text-2xl font-display font-bold text-warning-600 tabular-nums">
+                AED {pendingAmount.toLocaleString()}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="card overflow-hidden">
+      {/* Table */}
+      <div className="table-container animate-fade-in">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
+          <table className="table">
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Customer</th>
+                <th>Category</th>
+                <th className="text-right">Amount</th>
+                <th>Status</th>
+                <th className="text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="flex justify-center">
-                      <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
+                  <td colSpan={7} className="py-12">
+                    <div className="flex items-center justify-center">
+                      <div className="spinner" />
                     </div>
                   </td>
                 </tr>
               ) : incomeRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    No income records found
+                  <td colSpan={7}>
+                    <div className="empty-state">
+                      <div className="empty-state-icon">
+                        <DollarSign className="w-8 h-8" />
+                      </div>
+                      <p className="empty-state-title">No income records found</p>
+                      <p className="empty-state-text">
+                        {search || categoryFilter
+                          ? 'Try adjusting your search or filter criteria'
+                          : 'Get started by adding your first income record'}
+                      </p>
+                      {!search && !categoryFilter && (
+                        <button
+                          onClick={() => setShowForm(true)}
+                          className="btn-primary mt-4"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Income
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
-                incomeRecords.map((income: { id: number; income_date: string; description: string; customer?: { name: string }; category?: { name: string }; amount: number; status: string }) => (
-                  <tr key={income.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">{format(new Date(income.income_date), 'MMM d, yyyy')}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-gray-400" />
-                        {income.description}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">{income.customer?.name || '-'}</td>
-                    <td className="px-6 py-4">
-                      <span className="badge-gray">{income.category?.name || '-'}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-medium text-green-600">
-                      AED {income.amount.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={clsx('badge', statusColors[income.status])}>{income.status}</span>
-                    </td>
-                  </tr>
-                ))
+                incomeRecords.map((income: any, index: number) => {
+                  const status = statusConfig[income.status] || statusConfig.pending;
+
+                  return (
+                    <tr
+                      key={income.id}
+                      className="group animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-primary-400" />
+                          <span className="font-medium">{format(new Date(income.income_date), 'MMM d, yyyy')}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <div className="stat-icon-green w-8 h-8">
+                            <DollarSign className="w-4 h-4" />
+                          </div>
+                          <span className="font-medium text-primary-800 group-hover:text-accent-600 transition-colors">
+                            {income.description}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="text-primary-600">{income.customer?.name || '-'}</span>
+                      </td>
+                      <td>
+                        <span className="badge-gray">{income.category?.name || '-'}</span>
+                      </td>
+                      <td className="text-right">
+                        <span className="font-bold text-success-600 tabular-nums">
+                          AED {parseFloat(income.amount).toLocaleString()}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={status.badge}>{status.label}</span>
+                      </td>
+                      <td>
+                        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleEdit(income)}
+                            className="btn-icon"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          {isManager && (
+                            <button
+                              onClick={() => setDeletingIncome(income)}
+                              className="btn-icon hover:!bg-danger-50 hover:!text-danger-600"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      <IncomeForm
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        income={editingIncome}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deletingIncome}
+        onClose={() => setDeletingIncome(null)}
+        onConfirm={() => deletingIncome && deleteMutation.mutate(deletingIncome.id)}
+        title="Delete Income"
+        message={`Are you sure you want to delete this income of AED ${deletingIncome?.amount}? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="danger"
+      />
     </div>
   );
 }

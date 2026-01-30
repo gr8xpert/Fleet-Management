@@ -5,10 +5,13 @@ import { employeesApi } from '../services/api';
 import { Employee } from '../types';
 import { Plus, Search, Users, Phone } from 'lucide-react';
 import clsx from 'clsx';
+import EmployeeForm from '../components/EmployeeForm';
 
 export default function Employees() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<any>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['employees', search, typeFilter],
@@ -24,11 +27,16 @@ export default function Employees() {
     on_leave: 'badge-warning',
   };
 
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingEmployee(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={() => setShowForm(true)}>
           <Plus className="w-5 h-5 mr-2" />
           Add Employee
         </button>
@@ -66,7 +74,7 @@ export default function Employees() {
           </div>
         ) : employees.length === 0 ? (
           <div className="col-span-full text-center text-gray-500 py-12">
-            No employees found
+            No employees found. Click "Add Employee" to create one.
           </div>
         ) : (
           employees.map((employee: Employee) => (
@@ -116,6 +124,12 @@ export default function Employees() {
           ))
         )}
       </div>
+
+      <EmployeeForm
+        isOpen={showForm}
+        onClose={handleCloseForm}
+        employee={editingEmployee}
+      />
     </div>
   );
 }
