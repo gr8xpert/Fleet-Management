@@ -1,0 +1,5 @@
+date,category,amount,description,customer,payment_method,status,invoice,notes
+2024-01-05,Bus Rental,5000.00,Monthly rental - January,ABC Company,bank_transfer,received,INV-2024-001,
+2024-01-10,School Transport,8500.00,School contract payment,Dubai School,cheque,received,INV-2024-002,Q1 payment
+2024-01-15,Trip Charter,2500.00,Weekend trip to Abu Dhabi,XYZ Tours,cash,received,INV-2024-003,
+2024-01-20,Bus Rental,5000.00,Monthly rental - January,DEF Company,bank_transfer,pending,INV-2024-004,Due Feb 5

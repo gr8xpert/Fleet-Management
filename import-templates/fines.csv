@@ -1,0 +1,4 @@
+fine_number,date,amount,violation_type,bus_number,driver,location,due_date,status,notes
+TRF-2024-001,2024-01-05,500.00,Speeding,BUS-001,Ahmed Khan,Sheikh Zayed Road,2024-02-05,pending,Camera detected
+TRF-2024-002,2024-01-08,300.00,Parking Violation,BUS-002,Raj Kumar,Downtown Dubai,2024-02-08,paid,
+TRF-2024-003,2024-01-12,1000.00,Red Light,BUS-001,Ahmed Khan,Al Khail Road,2024-02-12,pending,

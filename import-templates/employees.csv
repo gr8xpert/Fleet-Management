@@ -1,0 +1,4 @@
+employee_id,name,email,phone,type,nationality,passport_number,passport_expiry,license_number,license_expiry,join_date,basic_salary,status
+EMP-001,Ahmed Khan,ahmed@example.com,+971501234567,driver,Pakistani,AB1234567,2026-05-15,DL789456,2025-12-31,2022-01-10,3500,active
+EMP-002,Raj Kumar,raj@example.com,+971509876543,driver,Indian,CD9876543,2027-03-20,DL456123,2026-06-30,2021-08-15,3200,active
+EMP-003,Ali Hassan,,+971507891234,mechanic,Egyptian,EF5678901,2025-11-10,,,2023-02-01,4000,active

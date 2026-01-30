@@ -1,0 +1,6 @@
+date,category,amount,description,bus_number,payment_method,reference,notes
+2024-01-05,Fuel,450.00,Diesel refill,BUS-001,cash,REC-001,Full tank
+2024-01-08,Maintenance,1200.00,Oil change and filter,BUS-001,card,INV-234,Regular service
+2024-01-10,Fuel,380.00,Diesel refill,BUS-002,cash,REC-002,
+2024-01-12,Tires,2400.00,New front tires,BUS-001,bank_transfer,INV-567,Michelin tires
+2024-01-15,Insurance,5000.00,Annual insurance renewal,BUS-002,cheque,POL-789,Full coverage

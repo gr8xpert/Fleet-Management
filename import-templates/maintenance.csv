@@ -1,0 +1,5 @@
+bus_number,date,type,description,odometer,labor_cost,parts_cost,total_cost,notes
+BUS-001,2024-01-08,oil_change,Regular oil change and filter,45000,150,350,500,Used Mobil 1 synthetic
+BUS-001,2024-01-15,repair,Brake pad replacement,45500,300,800,1100,Front and rear
+BUS-002,2024-01-10,inspection,Annual inspection,32000,200,0,200,Passed
+BUS-002,2024-01-20,tire_rotation,Tire rotation and balancing,32500,100,0,100,
