@@ -1,0 +1,177 @@
+============================================
+BUS FLEET MANAGEMENT - UPLOAD INSTRUCTIONS
+============================================
+
+This package contains two parts:
+1. backend/  - Laravel PHP API
+2. frontend/dist/ - React Web Application (built)
+
+============================================
+STEP 1: UPLOAD BACKEND (API)
+============================================
+
+Option A: Upload to a subdomain (Recommended)
+-------------------------------------------
+1. In Plesk, create a subdomain: api.yourdomain.com
+2. Upload ALL contents of the 'backend/' folder to the subdomain's httpdocs folder
+3. Set Document Root to: httpdocs/public
+
+Option B: Upload to a subfolder
+-------------------------------
+1. Upload ALL contents of 'backend/' folder to: httpdocs/api/
+2. Set Document Root to: httpdocs/api/public
+
+Files/Folders to upload from backend/:
+- app/
+- bootstrap/
+- config/
+- database/
+- public/
+- resources/
+- routes/
+- storage/
+- artisan
+- composer.json
+- .env.example (rename to .env after upload)
+
+============================================
+STEP 2: CONFIGURE BACKEND
+============================================
+
+1. Rename .env.example to .env
+
+2. Edit .env file and set:
+
+   APP_KEY= (generate with: php artisan key:generate)
+   APP_URL=https://api.yourdomain.com
+
+   DB_DATABASE=your_database_name
+   DB_USERNAME=your_database_user
+   DB_PASSWORD=your_database_password
+
+   FRONTEND_URL=https://yourdomain.com
+
+3. Create MySQL database in Plesk:
+   - Go to Databases in Plesk
+   - Create new database (e.g., buses_fleet)
+   - Create database user with full permissions
+
+4. Run these commands via SSH or Plesk Terminal:
+
+   cd /path/to/api/
+   composer install --no-dev --optimize-autoloader
+   php artisan key:generate
+   php artisan migrate --seed
+   php artisan storage:link
+   php artisan config:cache
+   php artisan route:cache
+
+============================================
+STEP 3: UPLOAD FRONTEND
+============================================
+
+1. Upload ALL contents of 'frontend/dist/' folder to your main domain's httpdocs folder:
+   - .htaccess
+   - config.js
+   - index.html
+   - assets/ (folder)
+
+2. Edit config.js and set your API URL:
+
+   window.FLEET_CONFIG = {
+       API_URL: 'https://api.yourdomain.com/api'
+   };
+
+============================================
+STEP 4: CONFIGURE EMAIL (Optional)
+============================================
+
+Edit .env on the backend to enable email notifications:
+
+MAIL_MAILER=smtp
+MAIL_HOST=mail.yourdomain.com
+MAIL_PORT=587
+MAIL_USERNAME=notifications@yourdomain.com
+MAIL_PASSWORD=your_email_password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=fleet@yourdomain.com
+MAIL_FROM_NAME="Bus Fleet Management"
+
+============================================
+STEP 5: SET UP CRON JOB (For Auto Alerts)
+============================================
+
+In Plesk, go to Scheduled Tasks and add:
+
+Command: cd /var/www/vhosts/yourdomain.com/api.yourdomain.com && php artisan schedule:run
+Run: Every minute (* * * * *)
+
+============================================
+DEFAULT LOGIN CREDENTIALS
+============================================
+
+After setup, login at https://yourdomain.com with:
+
+Admin:   admin@example.com / password
+Manager: manager@example.com / password
+Staff:   staff@example.com / password
+
+CHANGE THESE PASSWORDS IMMEDIATELY AFTER FIRST LOGIN!
+
+============================================
+FOLDER STRUCTURE AFTER UPLOAD
+============================================
+
+Your Plesk server should look like:
+
+/var/www/vhosts/yourdomain.com/
+├── httpdocs/                    (Main domain - Frontend)
+│   ├── .htaccess
+│   ├── config.js
+│   ├── index.html
+│   └── assets/
+│       ├── index-xxx.js
+│       └── index-xxx.css
+│
+└── api.yourdomain.com/          (Subdomain - Backend)
+    └── httpdocs/
+        ├── app/
+        ├── bootstrap/
+        ├── config/
+        ├── database/
+        ├── public/              (Document Root)
+        │   ├── index.php
+        │   └── .htaccess
+        ├── resources/
+        ├── routes/
+        ├── storage/
+        ├── .env
+        ├── artisan
+        └── composer.json
+
+============================================
+TROUBLESHOOTING
+============================================
+
+1. 500 Error on API:
+   - Check storage/ folder has write permissions (755 or 775)
+   - Check .env exists and has correct database settings
+   - Run: php artisan config:clear
+
+2. CORS Error:
+   - Make sure FRONTEND_URL in .env matches your domain exactly
+   - Clear config cache: php artisan config:clear
+
+3. Login not working:
+   - Make sure migrations ran: php artisan migrate:status
+   - Check API is accessible: visit https://api.yourdomain.com
+
+4. Images/Files not uploading:
+   - Run: php artisan storage:link
+   - Check storage/app/public has write permissions
+
+============================================
+SUPPORT
+============================================
+
+For issues, check the README.md file or contact your developer.

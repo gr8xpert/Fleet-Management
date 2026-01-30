@@ -1,0 +1,56 @@
+# Zip files
+*.zip
+
+# Dependencies
+/node_modules
+/vendor
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.backup*
+
+# Build outputs
+/frontend/dist
+/frontend/node_modules
+/backend/vendor
+
+# Laravel
+/backend/storage/*.key
+/backend/storage/logs/*
+/backend/storage/framework/cache/*
+/backend/storage/framework/sessions/*
+/backend/storage/framework/views/*
+/backend/bootstrap/cache/*
+!/backend/storage/logs/.gitkeep
+!/backend/storage/framework/cache/.gitkeep
+!/backend/storage/framework/sessions/.gitkeep
+!/backend/storage/framework/views/.gitkeep
+!/backend/bootstrap/cache/.gitkeep
+
+# Debug files
+*.php.bak
+debug-*.php
+test-*.php
+check-*.php
+fix-*.php
+deploy-*.php
+show-*.php
+latest-*.php
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Testing
+/coverage
+.phpunit.result.cache
